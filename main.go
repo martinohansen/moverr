@@ -180,7 +180,7 @@ func main() {
 
 	args := flag.Args()
 	if len(args) < 2 {
-		fmt.Printf("Usage: %s --apiKey <key> <tag> <destination>\n\n see --help for more", os.Args[0])
+		fmt.Printf("Usage: %s --apiKey <key> <tag> <destination>\n\nsee --help for more\n", os.Args[0])
 		os.Exit(1)
 	}
 
