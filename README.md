@@ -1,6 +1,6 @@
 # Moverr
 
-Moverr is taking movies with a cretin tag from Radarr and moving them to the specified destination.
+Moverr is taking movies with a particular tag in Radarr, moving them to the specified destination and creates a symbolic link from the old path to the new.
 
 ## Installation
 
@@ -33,4 +33,5 @@ $ moverr \
 ```
 
 ## Contributing
+
 Pull requests are welcome.

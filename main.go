@@ -2,35 +2,36 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"strings"
+	"path"
 	"time"
 
 	"github.com/martinohansen/moverr/internal/copy"
 )
 
-var config Config
-
+// Config is populated from flags
 type Config struct {
 	APIKey      string
 	PrefixPath  string
 	Authority   string
-	Destination string
 	SymlinkPath string
-	Tag         string
+	Verbose     bool
 }
 
+// Tag from Radarr API
 type Tag struct {
 	Label    string `json:"label"`
 	MovieIds []int  `json:"movieIds"`
 	ID       int    `json:"id"`
 }
 
+// Movie from Radarr API
 type Movie struct {
 	Title               string    `json:"title"`
 	OriginalTitle       string    `json:"originalTitle"`
@@ -53,6 +54,7 @@ type Movie struct {
 	ID                  int       `json:"id"`
 }
 
+// MovieFile from Radarr API
 type MovieFile struct {
 	MovieID             int       `json:"movieId"`
 	RelativePath        string    `json:"relativePath"`
@@ -64,17 +66,19 @@ type MovieFile struct {
 	ID                  int       `json:"id"`
 }
 
-func (tag Tag) Movies() []Movie {
+// Movies returns all movies on tag
+func (tag Tag) Movies(cfg Config) []Movie {
 	var movies []Movie
 	for _, id := range tag.MovieIds {
-		movie := GetMovie(id)
+		movie := NewMovie(id, cfg)
 		movies = append(movies, movie)
 	}
 	return movies
 }
 
-func GetTag(label string) Tag {
-	url := fmt.Sprintf("%s/api/v3/tag/detail?APIKey=%s", config.Authority, config.APIKey)
+// NewTag constructs a tag from label
+func NewTag(label string, cfg Config) (Tag, error) {
+	url := fmt.Sprintf("%s/api/v3/tag/detail?APIKey=%s", cfg.Authority, cfg.APIKey)
 	res, err := http.Get(url)
 	if err != nil {
 		log.Fatal(err)
@@ -89,15 +93,16 @@ func GetTag(label string) Tag {
 
 	for _, tag := range tags {
 		if tag.Label == label {
-			return tag
+			return tag, nil
 		}
 	}
 	emptyTag := new(Tag)
-	return *emptyTag
+	return *emptyTag, errors.New("found no tag")
 }
 
-func GetMovie(id int) Movie {
-	url := fmt.Sprintf("%s/api/v3/movie/%v?APIKey=%s", config.Authority, id, config.APIKey)
+// NewMovie constructs a movie from ID
+func NewMovie(id int, cfg Config) Movie {
+	url := fmt.Sprintf("%s/api/v3/movie/%v?APIKey=%s", cfg.Authority, id, cfg.APIKey)
 	res, err := http.Get(url)
 	if err != nil {
 		log.Fatal(err)
@@ -112,26 +117,38 @@ func GetMovie(id int) Movie {
 	return movie
 }
 
-func (movie Movie) IsSymlinked() bool {
+// IsSymlinked checks various paths to figure out if movie is already a symlink
+func (movie Movie) IsSymlinked(cfg Config) (bool, error) {
 	var locations []string
-	locations = append(locations, fmt.Sprintf("%s%s", config.PrefixPath, movie.Path))
-	locations = append(locations, fmt.Sprintf("%s%s", config.PrefixPath, movie.MovieFile.Path))
+	locations = append(locations, path.Join(cfg.PrefixPath, movie.Path))
+	locations = append(locations, path.Join(cfg.PrefixPath, movie.MovieFile.Path))
 
 	for _, location := range locations {
-		fi, _ := os.Lstat(location)
+		fi, err := os.Lstat(location)
+		if err != nil {
+			return false, err
+		}
 		if fi.Mode()&os.ModeSymlink != 0 {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
-func (movie Movie) Move() error {
-	folderName := strings.Split(movie.FolderName, "/")
-	src := fmt.Sprintf("%s%s", config.PrefixPath, movie.Path)
-	dst := fmt.Sprintf("%s/%s", config.Destination, folderName[len(folderName)-1])
-	symlink := fmt.Sprintf("%s/%s", config.SymlinkPath, folderName[len(folderName)-1])
-	log.Printf("moving %s from %s to %s with symlink %s", movie.Title, src, dst, symlink)
+// Move movie from current path to dst and creates symlink
+func (movie Movie) Move(dst string, cfg Config) error {
+	dir := path.Base(movie.FolderName)
+	fmt.Print(dir, movie.FolderName)
+	src := path.Join(cfg.PrefixPath, movie.Path)
+	dst = path.Join(dst, dir)
+	sym := dst
+	if cfg.PrefixPath != "" {
+		sym = path.Join(cfg.SymlinkPath, dir)
+	}
+
+	if cfg.Verbose {
+		log.Printf("moving %s from %s to %s with symlink %s...", movie.Title, src, dst, sym)
+	}
 	err := copy.Directory(src, dst)
 	if err != nil {
 		os.RemoveAll(dst)
@@ -141,31 +158,52 @@ func (movie Movie) Move() error {
 	if err != nil {
 		return err
 	}
-	err = os.Symlink(symlink, src)
+	err = os.Symlink(sym, src)
 	if err != nil {
 		return err
+	}
+
+	if cfg.Verbose {
+		log.Printf("moved %s successfully", movie.Title)
 	}
 	return nil
 }
 
 func main() {
-	flag.StringVar(&config.PrefixPath, "prefixPath", "./sample", "Prefix for Radarr paths")
-	flag.StringVar(&config.APIKey, "apiKey", "", "Radarr API key (required)")
-	flag.StringVar(&config.Authority, "authority", "http://localhost:7878", "Radarr host")
-	flag.StringVar(&config.Destination, "destination", "./sample/symbolic", "Movie destination after move")
-	flag.StringVar(&config.SymlinkPath, "symlinkPath", "../symbolic", "Symlink path")
-	flag.StringVar(&config.Tag, "tag", "test", "Radarr tag")
+	var cfg Config
+	flag.StringVar(&cfg.PrefixPath, "prefixPath", "", "Prefix Radarr paths")
+	flag.StringVar(&cfg.APIKey, "apiKey", "", "Radarr API key")
+	flag.StringVar(&cfg.Authority, "authority", "http://localhost:7878", "Radarr host")
+	flag.StringVar(&cfg.SymlinkPath, "symlinkPath", "", "Change symlink path (defaults to destination)")
+	flag.BoolVar(&cfg.Verbose, "verbose", false, "Verbose output")
 	flag.Parse()
 
-	if config.APIKey == "" {
-		flag.PrintDefaults()
+	args := flag.Args()
+	if len(args) < 2 {
+		fmt.Printf("Usage: %s --apiKey <key> <tag> <destination>\n\n see --help for more", os.Args[0])
 		os.Exit(1)
 	}
 
-	tag := GetTag(config.Tag)
-	for _, movie := range tag.Movies() {
-		if !movie.IsSymlinked() {
-			err := movie.Move()
+	tag, err := NewTag(args[0], cfg)
+	if err != nil {
+		log.Printf("no tag with label %s found", args[0])
+	}
+
+	for _, movie := range tag.Movies(cfg) {
+		symlink, err := movie.IsSymlinked(cfg)
+		if err != nil {
+			log.Fatalf("failed to check %s for symlink: %s", movie.Title, err)
+		}
+		switch symlink {
+		case true:
+			if cfg.Verbose {
+				log.Printf("%s is already moved, skipping...", movie.Title)
+			}
+		case false:
+			if cfg.Verbose {
+				log.Printf("%s is not moved, going to...", movie.Title)
+			}
+			err := movie.Move(args[1], cfg)
 			if err != nil {
 				log.Fatal(err)
 			}
