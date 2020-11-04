@@ -12,7 +12,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/martinohansen/moverr/internal/copy"
+	"github.com/otiai10/copy"
 )
 
 // Connection is everything needed to use the Radarr API
@@ -143,7 +143,7 @@ func (movie Movie) Move(dst string, sym string, conn Connection) error {
 	dst = path.Join(path.Clean(dst), dir)
 	sym = path.Join(path.Clean(sym), dir)
 
-	err := copy.Directory(src, dst)
+	err := copy.Copy(src, dst)
 	if err != nil {
 		os.RemoveAll(dst)
 		return err
