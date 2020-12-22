@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 
-	"../internal/copy"
+	"github.com/martinohansen/moverr/internal/copy"
 )
 
 // Mover is the interface for things that move
