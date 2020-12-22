@@ -1,5 +1,5 @@
 /*
-Package radarr implements types and functions to work on media from Radarr.
+Package radarr implements the show.Mover interface
 */
 package radarr
 
@@ -8,11 +8,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"path"
 	"time"
 
-	"github.com/otiai10/copy"
+	"github.com/martinohansen/moverr/show"
 )
 
 // Connection is everything needed to use the Radarr API
@@ -63,18 +61,32 @@ type MovieFile struct {
 	ID                  int       `json:"id"`
 }
 
+// Show returns a slice of movies that satisfy the Mover interface
+func Show(tag string, conn Connection) []show.Show {
+	var shows []show.Show
+	t, _ := newTag(tag, conn)
+	movies := t.Movies(conn)
+	for _, movie := range movies {
+		var show show.Show
+		show.Directory = movie.Path
+		show.Title = movie.Title
+		shows = append(shows, show)
+	}
+	return shows
+}
+
 // Movies returns a slice of all movies with tag
 func (tag Tag) Movies(conn Connection) []Movie {
 	var movies []Movie
 	for _, id := range tag.MovieIds {
-		movie, _ := NewMovie(id, conn)
+		movie, _ := newMovie(id, conn)
 		movies = append(movies, *movie)
 	}
 	return movies
 }
 
 // NewTag return the tag with label from conn
-func NewTag(label string, conn Connection) (*Tag, error) {
+func newTag(label string, conn Connection) (*Tag, error) {
 	url := fmt.Sprintf("%s/api/v3/tag/detail", conn.Authority)
 	if conn.APIKey != "" {
 		url = fmt.Sprintf("%s/api/v3/tag/detail?APIKey=%s", conn.Authority, conn.APIKey)
@@ -104,7 +116,7 @@ func NewTag(label string, conn Connection) (*Tag, error) {
 }
 
 // NewMovie returns the movie with id from conn
-func NewMovie(id int, conn Connection) (*Movie, error) {
+func newMovie(id int, conn Connection) (*Movie, error) {
 	url := fmt.Sprintf("%s/api/v3/movie/%v?APIKey=%s", conn.Authority, id, conn.APIKey)
 	res, err := http.Get(url)
 	if err != nil {
@@ -118,43 +130,4 @@ func NewMovie(id int, conn Connection) (*Movie, error) {
 	var movie Movie
 	json.Unmarshal(body, &movie)
 	return &movie, nil
-}
-
-// Symlinked checks movie paths and returns true if its symlinked
-func (movie Movie) Symlinked() (bool, error) {
-	locations := []string{movie.Path, movie.MovieFile.Path}
-
-	for _, location := range locations {
-		fi, err := os.Lstat(location)
-		if err != nil {
-			return false, err
-		}
-		if fi.Mode()&os.ModeSymlink != 0 {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-// Move movie to dst and create a symlink from source to sym
-func (movie Movie) Move(dst string, sym string, conn Connection) error {
-	dir := path.Base(movie.FolderName)
-	src := path.Clean(movie.Path)
-	dst = path.Join(path.Clean(dst), dir)
-	sym = path.Join(path.Clean(sym), dir)
-
-	err := copy.Copy(src, dst)
-	if err != nil {
-		os.RemoveAll(dst)
-		return err
-	}
-	err = os.RemoveAll(src)
-	if err != nil {
-		return err
-	}
-	err = os.Symlink(sym, src)
-	if err != nil {
-		return err
-	}
-	return nil
 }
