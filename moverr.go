@@ -1,3 +1,7 @@
+/*
+Moverr moves shows from content managers to new locations and creates a symbolic
+link from the old path to the new.
+*/
 package main
 
 import (
@@ -8,6 +12,7 @@ import (
 	"path"
 
 	"github.com/martinohansen/moverr/radarr"
+	"github.com/martinohansen/moverr/show"
 )
 
 func main() {
@@ -62,22 +67,19 @@ func main() {
 			Authority: *radarrAuthority,
 		}
 
-		tag, err := radarr.NewTag(*radarrTag, *radarrConn)
-		if err != nil {
-			log.Fatalf("failed to get tag %s: %s", *radarrTag, err)
-		}
+		movies := radarr.Show(*radarrTag, *radarrConn)
 
-		for _, movie := range tag.Movies(*radarrConn) {
+		for _, movie := range movies {
 			if *radarrPrefixPath != "" {
-				movie.Path = path.Join(*radarrPrefixPath, movie.Path)
-				movie.MovieFile.Path = path.Join(*radarrPrefixPath, movie.MovieFile.Path)
+				movie.Directory = path.Join(*radarrPrefixPath, movie.Directory)
 			}
 
-			symlink, err := movie.Symlinked()
+			movable, err := movie.Movable()
 			if err != nil {
-				log.Fatalf("%s failed to check for symlink: %s", movie.Title, err)
+				log.Fatalf("%s failed to check if movable: %s", movie.Title, err)
 			}
-			switch symlink {
+
+			switch movable {
 			case true:
 				log.Printf("%s is already moved, skipping...", movie.Title)
 			case false:
@@ -87,7 +89,7 @@ func main() {
 					*radarrSymlinkPath = path.Clean(*radarrSymlinkPath)
 				}
 				log.Printf("%s is not moved, moving to: %s and creating symlink to: %s", movie.Title, *radarrDestination, *radarrSymlinkPath)
-				err := movie.Move(*radarrDestination, *radarrSymlinkPath, *radarrConn)
+				err := show.Move(movie, *radarrDestination, *radarrSymlinkPath)
 				if err != nil {
 					log.Fatalf("%s failed to move: %s", movie.Title, err)
 				}
