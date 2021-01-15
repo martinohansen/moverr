@@ -32,6 +32,7 @@ Options:
         Override symlink path
   -t string
         Tag to move (required)
+  -v    Verbose output
 ```
 
 For example:
