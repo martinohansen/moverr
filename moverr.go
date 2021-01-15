@@ -40,6 +40,7 @@ func main() {
 	radarrPrefixPath := radarrCmd.String("p", "", "Prefix paths with this path")
 	radarrSymlinkPath := radarrCmd.String("s", "", "Override symlink path")
 	radarrTag := radarrCmd.String("t", "", "Tag to move (required)")
+	radarrVerbose := radarrCmd.Bool("v", false, "Verbose output")
 
 	switch os.Args[1] {
 	case "radarr":
@@ -81,7 +82,9 @@ func main() {
 
 			switch movable {
 			case true:
-				log.Printf("%s is already moved, skipping...", movie.Title)
+				if *radarrVerbose {
+					log.Printf("%s is already moved, skipping...", movie.Title)
+				}
 			case false:
 				if *radarrSymlinkPath == "" {
 					*radarrSymlinkPath = path.Clean(*radarrDestination)

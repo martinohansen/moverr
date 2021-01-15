@@ -80,7 +80,7 @@ func moveCompare(t *testing.T, init func()) {
 	}
 
 	if size != newSize {
-		t.Errorf("dir size after doesn't match: %v vs %v", size, newSize)
+		t.Errorf("dir size after move doesn't match: %v vs %v bytes", size, newSize)
 	}
 }
 
