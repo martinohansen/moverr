@@ -1,25 +1,21 @@
 package show
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/facebookarchive/symwalk"
 )
 
-var testRoot string = "/tmp/moverr"
-var testSrc string = fmt.Sprintf("%s/src", testRoot)
-var testDst string = fmt.Sprintf("%s/dst", testRoot)
-var showPath string = fmt.Sprintf("%s/movie", testSrc)
-var showFile string = fmt.Sprintf("%s/movie.mp4", showPath)
-
-func initShow(t *testing.T) {
-	os.MkdirAll(showPath, 0755)
-	os.MkdirAll(testDst, 0755)
-	content := []byte("i'm a movie")
-	ioutil.WriteFile(showFile, content, 0755)
-}
+var (
+	testRoot string = "/tmp/moverr"
+	testSrc  string = fmt.Sprintf("%s/src", testRoot)
+	testDst  string = fmt.Sprintf("%s/dst", testRoot)
+	showPath string = fmt.Sprintf("%s/movie", testSrc)
+	showFile string = fmt.Sprintf("%s/movie.mp4", showPath)
+)
 
 func cleanupShow(t *testing.T) {
 	err := os.RemoveAll(testRoot)
@@ -29,23 +25,59 @@ func cleanupShow(t *testing.T) {
 }
 
 func TestMove(t *testing.T) {
-	initShow(t)
 	defer cleanupShow(t)
+	x := func() {
+		os.MkdirAll(showPath, 0755)
+		os.MkdirAll(testDst, 0755)
+		content := []byte("i'm a movie")
+		ioutil.WriteFile(showFile, content, 0755)
+	}
+	moveCompare(t, x)
+}
+
+func TestMoveEmptyDir(t *testing.T) {
+	defer cleanupShow(t)
+	x := func() {
+		os.MkdirAll(showPath, 0755)
+		os.MkdirAll(testDst, 0755)
+	}
+	moveCompare(t, x)
+}
+
+func moveCompare(t *testing.T, init func()) {
+	init()
 
 	show := Show{Directory: showPath}
-	oldShow, _ := ioutil.ReadFile(showFile)
+	size, err := dirSize(showPath)
+	if err != nil {
+		t.Errorf("failed to get show size: %s", err)
+	}
 
-	err := Move(show, testDst, testDst)
+	err = Move(show, testDst, testDst)
 	if err != nil {
 		t.Errorf("failed to move show: %s", err)
 	}
 
-	newShow, err := ioutil.ReadFile(showFile)
+	newSize, err := dirSize(showPath)
 	if err != nil {
-		t.Errorf("failed to read movie after move: %s", err)
+		t.Errorf("failed to get show size: %s", err)
 	}
 
-	if bytes.Compare(oldShow, newShow) != 0 {
-		t.Errorf("move is not the same after move")
+	if size != newSize {
+		t.Errorf("dir size after doesn't match: %v vs %v", size, newSize)
 	}
+}
+
+func dirSize(path string) (int64, error) {
+	var size int64
+	err := symwalk.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return err
+	})
+	return size, err
 }
