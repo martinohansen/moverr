@@ -47,7 +47,7 @@ func (s Show) Movable() (bool, error) {
 			return false, err
 		}
 		if fi.Mode()&os.ModeSymlink != 0 {
-			return false, nil
+			return false, fmt.Errorf("%s is already a symlink", fi.Name())
 		}
 	}
 	return true, nil
