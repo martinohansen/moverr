@@ -82,10 +82,6 @@ func main() {
 
 			switch movable {
 			case true:
-				if *radarrVerbose {
-					log.Printf("%s is already moved, skipping...", movie.Title)
-				}
-			case false:
 				if *radarrSymlinkPath == "" {
 					*radarrSymlinkPath = path.Clean(*radarrDestination)
 				} else {
@@ -97,6 +93,10 @@ func main() {
 					log.Fatalf("%s failed to move: %s", movie.Title, err)
 				}
 				log.Printf("%s finished moving and created symlink", movie.Title)
+			case false:
+				if *radarrVerbose {
+					log.Printf("%s is already moved, skipping...", movie.Title)
+				}
 			}
 		}
 	}
