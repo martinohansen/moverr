@@ -47,7 +47,7 @@ func (s Show) Movable() (bool, error) {
 			return false, err
 		}
 		if fi.Mode()&os.ModeSymlink != 0 {
-			return false, fmt.Errorf("%s is already a symlink", fi.Name())
+			return false, nil
 		}
 	}
 	return true, nil
@@ -55,27 +55,23 @@ func (s Show) Movable() (bool, error) {
 
 // Move a show and symbolic links the from source to destination
 func Move(m Mover, dst, sym string) error {
-	movable, err := m.Movable()
-	if movable {
-		src := path.Clean(m.Source())
-		dir, _ := path.Split(src)
-		dst = path.Join(path.Clean(dst), dir)
-		sym = path.Join(path.Clean(sym), dir)
+	src := path.Clean(m.Source())
+	dir, _ := path.Split(src)
+	dst = path.Join(path.Clean(dst), dir)
+	sym = path.Join(path.Clean(sym), dir)
 
-		err := copy.CopyDir(src, dst)
-		if err != nil {
-			os.RemoveAll(dst)
-			return fmt.Errorf("failed to copy: %s", err)
-		}
-		err = os.RemoveAll(src)
-		if err != nil {
-			return fmt.Errorf("failed to remove: %s", err)
-		}
-		err = os.Symlink(sym, src)
-		if err != nil {
-			return fmt.Errorf("failed to create symlink: %s", err)
-		}
-		return nil
+	err := copy.CopyDir(src, dst)
+	if err != nil {
+		os.RemoveAll(dst)
+		return fmt.Errorf("failed to copy: %s", err)
 	}
-	return fmt.Errorf("show not movable: %s", err)
+	err = os.RemoveAll(src)
+	if err != nil {
+		return fmt.Errorf("failed to remove: %s", err)
+	}
+	err = os.Symlink(sym, src)
+	if err != nil {
+		return fmt.Errorf("failed to create symlink: %s", err)
+	}
+	return nil
 }
