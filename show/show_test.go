@@ -44,6 +44,22 @@ func TestMoveEmptyDir(t *testing.T) {
 	moveCompare(t, x)
 }
 
+func TestAlreadyMoved(t *testing.T) {
+	defer cleanupShow(t)
+	show := Show{Directory: showPath}
+
+	os.MkdirAll(showPath, 0755)
+	os.MkdirAll(testDst, 0755)
+	content := []byte("i'm a movie whos already moved")
+	ioutil.WriteFile(showFile, content, 0755)
+	_ = Move(show, testDst, testDst)
+
+	moveable, _ := show.Movable()
+	if moveable {
+		t.Errorf("failed to see that movie was already moved")
+	}
+}
+
 func moveCompare(t *testing.T, init func()) {
 	init()
 
