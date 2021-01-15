@@ -17,7 +17,7 @@ $ moverr
 Usage: moverr (radarr | version) [<args>]
 
 $ moverr radarr
-Usage: moverr radarr -t <tag> -d <destination> [-ahps]
+Usage: moverr radarr -t <tag> -d <destination> [-ahpsv]
 
 Options:
   -a string

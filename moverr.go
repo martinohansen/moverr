@@ -29,12 +29,12 @@ func main() {
 	// Radarr subcommand
 	radarrCmd := flag.NewFlagSet("radarr", flag.ExitOnError)
 	radarrCmd.Usage = func() {
-		fmt.Println("Usage: moverr radarr -t <tag> -d <destination> [-ahps]")
+		fmt.Println("Usage: moverr radarr -a <key> -t <tag> -d <destination> [-hpsv]")
 		fmt.Println("\nOptions:")
 		radarrCmd.PrintDefaults()
 	}
 
-	radarrAPIKey := radarrCmd.String("a", "", "Radarr API key")
+	radarrAPIKey := radarrCmd.String("a", "", "Radarr API key (required)")
 	radarrAuthority := radarrCmd.String("h", "http://localhost:7878", "Radarr host")
 	radarrDestination := radarrCmd.String("d", "", "Destination (required)")
 	radarrPrefixPath := radarrCmd.String("p", "", "Prefix paths with this path")
@@ -47,6 +47,10 @@ func main() {
 		radarrCmd.Parse(os.Args[2:])
 
 		// Check for required flags
+		if *radarrAPIKey == "" {
+			radarrCmd.Usage()
+			os.Exit(1)
+		}
 		if *radarrDestination == "" {
 			radarrCmd.Usage()
 			os.Exit(1)
