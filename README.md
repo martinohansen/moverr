@@ -1,6 +1,8 @@
 # Moverr
 
-Moverr is taking movies with a particular tag in Radarr, moving them to the specified destination and creates a symbolic link from the old path to the new.
+Moverr is taking movies with a particular tag in Radarr or Sonarr, moving them
+to the specified destination and creates a symbolic link from the old path to
+the new.
 
 ## Installation
 
@@ -14,9 +16,9 @@ go get github.com/martinohansen/moverr
 
 ```bash
 $ moverr
-Usage: moverr (radarr | version) [<args>]
+Usage: moverr (radarr | sonarr | version) [<args>]
 
-$ moverr radarr
+$ moverr radarr # or sonarr
 Usage: moverr radarr -a <key> -t <tag> -d <destination> [-hpsv]
 
 Options:
