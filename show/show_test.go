@@ -72,9 +72,14 @@ func moveCompare(t *testing.T, init func()) {
 		t.Errorf("failed to get show size: %s", err)
 	}
 
-	err = Move(show, testDst, testDst)
-	if err != nil {
-		t.Errorf("failed to move show: %s", err)
+	moveable, err := show.Movable()
+	if moveable {
+		err = Move(show, testDst, testDst)
+		if err != nil {
+			t.Errorf("failed to move show: %s", err)
+		}
+	} else {
+		t.Errorf("show not moveable even thus is should be: %s", err)
 	}
 
 	newSize, err := dirSize(showPath)
