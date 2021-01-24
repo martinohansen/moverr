@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/facebookarchive/symwalk"
@@ -33,6 +34,8 @@ func TestMove(t *testing.T) {
 		ioutil.WriteFile(showFile, content, 0755)
 	}
 	moveCompare(t, x)
+	t.Logf("Directory and file list after move:")
+	tree(testRoot, t)
 }
 
 func TestMoveEmptyDir(t *testing.T) {
@@ -96,4 +99,21 @@ func dirSize(path string) (int64, error) {
 		return err
 	})
 	return size, err
+}
+
+// tree prints a list of directories and files from rootPath for human
+// verification
+func tree(rootPath string, t *testing.T) error {
+	err := filepath.Walk(rootPath,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			t.Logf(path)
+			return nil
+		})
+	if err != nil {
+		return err
+	}
+	return nil
 }
