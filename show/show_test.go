@@ -5,17 +5,21 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/facebookarchive/symwalk"
 )
 
 var (
-	testRoot string = "/tmp/moverr"
-	testSrc  string = fmt.Sprintf("%s/src", testRoot)
-	testDst  string = fmt.Sprintf("%s/dst", testRoot)
-	showPath string = fmt.Sprintf("%s/movie", testSrc)
-	showFile string = fmt.Sprintf("%s/movie.mp4", showPath)
+	testRoot   string = "/tmp/moverr"
+	testSrc    string = fmt.Sprintf("%s/src", testRoot)
+	testDst    string = fmt.Sprintf("%s/dst", testRoot)
+	showPath   string = fmt.Sprintf("%s/movie", testSrc)
+	showFile   string = fmt.Sprintf("%s/movie.mp4", showPath)
+	seriesPath string = fmt.Sprintf("%s/series", testSrc)
+	seasonPath string = fmt.Sprintf("%s/season 1", seriesPath)
+	seriesFile string = fmt.Sprintf("%s/episode 1.mp4", seasonPath)
 )
 
 func cleanupShow(t *testing.T) {
@@ -33,8 +37,7 @@ func TestMove(t *testing.T) {
 		content := []byte("i'm a movie")
 		ioutil.WriteFile(showFile, content, 0755)
 	}
-	moveCompare(t, x)
-	t.Logf("Directory and file list after move:")
+	moveCompare(t, x, showPath)
 	tree(testRoot, t)
 }
 
@@ -44,7 +47,7 @@ func TestMoveEmptyDir(t *testing.T) {
 		os.MkdirAll(showPath, 0755)
 		os.MkdirAll(testDst, 0755)
 	}
-	moveCompare(t, x)
+	moveCompare(t, x, showPath)
 }
 
 func TestAlreadyMoved(t *testing.T) {
@@ -63,11 +66,23 @@ func TestAlreadyMoved(t *testing.T) {
 	}
 }
 
-func moveCompare(t *testing.T, init func()) {
+func TestMoveSeries(t *testing.T) {
+	defer cleanupShow(t)
+	x := func() {
+		os.MkdirAll(seasonPath, 0755)
+		os.MkdirAll(testDst, 0755)
+		content := []byte("i'm a episode")
+		ioutil.WriteFile(seriesFile, content, 0755)
+	}
+	moveCompare(t, x, seriesPath)
+	tree(testRoot, t)
+}
+
+func moveCompare(t *testing.T, init func(), path string) {
 	init()
 
-	show := Show{Directory: showPath}
-	size, err := dirSize(showPath)
+	show := Show{Directory: path}
+	size, err := dirSize(path)
 	if err != nil {
 		t.Errorf("failed to get show size: %s", err)
 	}
@@ -82,7 +97,7 @@ func moveCompare(t *testing.T, init func()) {
 		t.Errorf("show not moveable even thus is should be: %s", err)
 	}
 
-	newSize, err := dirSize(showPath)
+	newSize, err := dirSize(path)
 	if err != nil {
 		t.Errorf("failed to get show size: %s", err)
 	}
@@ -106,19 +121,35 @@ func dirSize(path string) (int64, error) {
 	return size, err
 }
 
-// tree prints a list of directories and files from rootPath for human
-// verification
-func tree(rootPath string, t *testing.T) error {
+// tree checks if the paths are looking correct
+func tree(rootPath string, t *testing.T) {
 	err := filepath.Walk(rootPath,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				return err
+				t.Error(err)
 			}
-			t.Logf(path)
+			if info.Mode()&os.ModeSymlink != 0 {
+				link, err := os.Readlink(path)
+				if err != nil {
+					return err
+				}
+				checkLink(path, link, t)
+			} else {
+				t.Logf(path)
+			}
 			return nil
 		})
 	if err != nil {
-		return err
+		t.Error(err)
 	}
-	return nil
+}
+
+// checkLink compares if a path and its symlink have the overall same path
+func checkLink(path, link string, t *testing.T) {
+	xPath := strings.ReplaceAll(path, "src", "x")
+	xLink := strings.ReplaceAll(link, "dst", "x")
+	if xPath != xLink {
+		t.Errorf("paths are not looking correct:")
+	}
+	t.Logf("%s -> %s", path, link)
 }
