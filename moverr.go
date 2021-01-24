@@ -37,7 +37,7 @@ func main() {
 	radarrAPIKey := radarrCmd.String("a", "", "Radarr API key (required)")
 	radarrAuthority := radarrCmd.String("h", "http://localhost:7878", "Radarr host")
 	radarrDestination := radarrCmd.String("d", "", "Destination (required)")
-	radarrPrefixPath := radarrCmd.String("p", "", "Prefix paths with this path")
+	radarrPrefixPath := radarrCmd.String("p", "", "Prefix movie paths with this path")
 	radarrSymlinkPath := radarrCmd.String("s", "", "Override symlink path")
 	radarrTag := radarrCmd.String("t", "", "Tag to move (required)")
 	radarrVerbose := radarrCmd.Bool("v", false, "Verbose output")
@@ -81,7 +81,7 @@ func main() {
 
 			movable, err := movie.Movable()
 			if err != nil {
-				log.Fatalf("%s failed to check if movable: %s", movie.Title, err)
+				log.Fatalf("%s failed to check if movable: %s", movie.Directory, err)
 			}
 
 			switch movable {
@@ -91,15 +91,15 @@ func main() {
 				} else {
 					*radarrSymlinkPath = path.Clean(*radarrSymlinkPath)
 				}
-				log.Printf("%s is not moved, moving to: %s and creating symlink to: %s", movie.Title, *radarrDestination, *radarrSymlinkPath)
+				log.Printf("%s is not moved, moving to: %s and creating symlink to: %s", movie.Directory, *radarrDestination, *radarrSymlinkPath)
 				err := show.Move(movie, *radarrDestination, *radarrSymlinkPath)
 				if err != nil {
-					log.Fatalf("%s failed to move: %s", movie.Title, err)
+					log.Fatalf("%s failed to move: %s", movie.Directory, err)
 				}
-				log.Printf("%s finished moving and created symlink", movie.Title)
+				log.Printf("%s finished moving and created symlink", movie.Directory)
 			case false:
 				if *radarrVerbose {
-					log.Printf("%s is already moved, skipping...", movie.Title)
+					log.Printf("%s is already moved, skipping...", movie.Directory)
 				}
 			}
 		}
