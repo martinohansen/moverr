@@ -60,7 +60,7 @@ func main() {
 			os.Exit(1)
 		}
 	case "version":
-		fmt.Println("moverr version 0.2.1")
+		fmt.Println("moverr version 0.2.2")
 		os.Exit(0)
 	default:
 		flag.Usage()
