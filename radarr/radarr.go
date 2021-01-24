@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"time"
 
@@ -64,7 +65,10 @@ type MovieFile struct {
 // Show returns a slice of movies that satisfy the Mover interface
 func Show(tag string, conn Connection) []show.Show {
 	var shows []show.Show
-	t, _ := newTag(tag, conn)
+	t, err := newTag(tag, conn)
+	if err != nil {
+		log.Fatalf("failed to get tag %s: %s", tag, err)
+	}
 	movies := t.Movies(conn)
 	for _, movie := range movies {
 		var show show.Show
@@ -79,7 +83,10 @@ func Show(tag string, conn Connection) []show.Show {
 func (tag Tag) Movies(conn Connection) []Movie {
 	var movies []Movie
 	for _, id := range tag.MovieIds {
-		movie, _ := newMovie(id, conn)
+		movie, err := newMovie(id, conn)
+		if err != nil {
+			log.Fatalf("failed to get movie %v: %s", id, err)
+		}
 		movies = append(movies, *movie)
 	}
 	return movies
