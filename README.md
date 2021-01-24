@@ -17,17 +17,17 @@ $ moverr
 Usage: moverr (radarr | version) [<args>]
 
 $ moverr radarr
-Usage: moverr radarr -t <tag> -d <destination> [-ahpsv]
+Usage: moverr radarr -a <key> -t <tag> -d <destination> [-hpsv]
 
 Options:
   -a string
-        Radarr API key
+        Radarr API key (required)
   -d string
         Destination (required)
   -h string
         Radarr host (default "http://localhost:7878")
   -p string
-        Prefix paths with this path
+        Prefix movie paths with this path
   -s string
         Override symlink path
   -t string
