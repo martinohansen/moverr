@@ -13,12 +13,13 @@ import (
 
 	"github.com/martinohansen/moverr/radarr"
 	"github.com/martinohansen/moverr/show"
+	"github.com/martinohansen/moverr/sonarr"
 )
 
 func main() {
 	// Root command
 	flag.Usage = func() {
-		fmt.Println("Usage: moverr (radarr | version) [<args>]")
+		fmt.Println("Usage: moverr (radarr | sonarr | version) [<args>]")
 	}
 
 	if len(os.Args) < 2 {
@@ -42,6 +43,22 @@ func main() {
 	radarrTag := radarrCmd.String("t", "", "Tag to move (required)")
 	radarrVerbose := radarrCmd.Bool("v", false, "Verbose output")
 
+	// Sonarr subcommand
+	sonarrCmd := flag.NewFlagSet("sonarr", flag.ExitOnError)
+	sonarrCmd.Usage = func() {
+		fmt.Println("Usage: moverr sonarr -a <key> -t <tag> -d <destination> [-hpsv]")
+		fmt.Println("\nOptions:")
+		sonarrCmd.PrintDefaults()
+	}
+
+	sonarrAPIKey := sonarrCmd.String("a", "", "Sonarr API key (required)")
+	sonarrAuthority := sonarrCmd.String("h", "http://localhost:8989", "Sonarr host")
+	sonarrDestination := sonarrCmd.String("d", "", "Destination (required)")
+	sonarrPrefixPath := sonarrCmd.String("p", "", "Prefix series paths with this path")
+	sonarrSymlinkPath := sonarrCmd.String("s", "", "Override symlink path")
+	sonarrTag := sonarrCmd.String("t", "", "Tag to move (required)")
+	sonarrVerbose := sonarrCmd.Bool("v", false, "Verbose output")
+
 	switch os.Args[1] {
 	case "radarr":
 		radarrCmd.Parse(os.Args[2:])
@@ -59,13 +76,30 @@ func main() {
 			radarrCmd.Usage()
 			os.Exit(1)
 		}
+	case "sonarr":
+		sonarrCmd.Parse(os.Args[2:])
+
+		// Check for required flags
+		if *sonarrAPIKey == "" {
+			sonarrCmd.Usage()
+			os.Exit(1)
+		}
+		if *sonarrDestination == "" {
+			sonarrCmd.Usage()
+			os.Exit(1)
+		}
+		if *sonarrTag == "" {
+			sonarrCmd.Usage()
+			os.Exit(1)
+		}
 	case "version":
-		fmt.Println("moverr version 0.2.2")
+		fmt.Println("moverr version 0.3.0")
 		os.Exit(0)
 	default:
 		flag.Usage()
 	}
 
+	// Radarr subcommand logic
 	if radarrCmd.Parsed() {
 		radarrConn := &radarr.Connection{
 			APIKey:    *radarrAPIKey,
@@ -100,6 +134,48 @@ func main() {
 			case false:
 				if *radarrVerbose {
 					log.Printf("%s is already moved, skipping...", movie.Directory)
+				}
+			}
+		}
+	}
+
+	// Sonar subcommand logic
+	if sonarrCmd.Parsed() {
+		sonarrConn := &sonarr.Connection{
+			APIKey:    *sonarrAPIKey,
+			Authority: *sonarrAuthority,
+		}
+
+		series, err := sonarr.Show(*sonarrTag, *sonarrConn)
+		if err != nil {
+			log.Fatalf("failed to any series: %s", err)
+		}
+		for _, s := range series {
+			if *sonarrPrefixPath != "" {
+				s.Directory = path.Join(*sonarrPrefixPath, s.Directory)
+			}
+
+			movable, err := s.Movable()
+			if err != nil {
+				log.Fatalf("%s, failed to check if movable: %s", s.Directory, err)
+			}
+
+			switch movable {
+			case true:
+				if *sonarrSymlinkPath == "" {
+					*sonarrSymlinkPath = path.Clean(*sonarrDestination)
+				} else {
+					*sonarrSymlinkPath = path.Clean(*sonarrSymlinkPath)
+				}
+				log.Printf("%s is not moved, moving to: %s and creating symlink to: %s", s.Directory, *sonarrDestination, *sonarrSymlinkPath)
+				err := show.Move(s, *sonarrDestination, *sonarrSymlinkPath)
+				if err != nil {
+					log.Fatalf("%s failed to move: %s", s.Directory, err)
+				}
+				log.Printf("%s finished moving and created symlink", s.Directory)
+			case false:
+				if *sonarrVerbose {
+					log.Printf("%s is already moved, skipping...", s.Directory)
 				}
 			}
 		}
