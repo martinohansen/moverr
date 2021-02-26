@@ -93,7 +93,7 @@ func main() {
 			os.Exit(1)
 		}
 	case "version":
-		fmt.Println("moverr version 0.3.0")
+		fmt.Println("moverr version 0.3.1")
 		os.Exit(0)
 	default:
 		flag.Usage()
@@ -109,13 +109,14 @@ func main() {
 		movies := radarr.Show(*radarrTag, *radarrConn)
 
 		for _, movie := range movies {
+			log.SetPrefix(movie.Directory)
 			if *radarrPrefixPath != "" {
 				movie.Directory = path.Join(*radarrPrefixPath, movie.Directory)
 			}
 
 			movable, err := movie.Movable()
 			if err != nil {
-				log.Fatalf("%s failed to check if movable: %s", movie.Directory, err)
+				log.Fatalf("failed to check if movable: %s", err)
 			}
 
 			switch movable {
@@ -125,15 +126,15 @@ func main() {
 				} else {
 					*radarrSymlinkPath = path.Clean(*radarrSymlinkPath)
 				}
-				log.Printf("%s is not moved, moving to: %s and creating symlink to: %s", movie.Directory, *radarrDestination, *radarrSymlinkPath)
+				log.Printf("is not moved, moving to: %s and creating symlink to: %s", *radarrDestination, *radarrSymlinkPath)
 				err := show.Move(movie, *radarrDestination, *radarrSymlinkPath)
 				if err != nil {
-					log.Fatalf("%s failed to move: %s", movie.Directory, err)
+					log.Fatalf("failed to move: %s", err)
 				}
-				log.Printf("%s finished moving and created symlink", movie.Directory)
+				log.Printf("finished moving and created symlink")
 			case false:
 				if *radarrVerbose {
-					log.Printf("%s is already moved, skipping...", movie.Directory)
+					log.Printf("is already moved, skipping...")
 				}
 			}
 		}
@@ -151,13 +152,14 @@ func main() {
 			log.Fatalf("failed to any series: %s", err)
 		}
 		for _, s := range series {
+			log.SetPrefix(s.Directory)
 			if *sonarrPrefixPath != "" {
 				s.Directory = path.Join(*sonarrPrefixPath, s.Directory)
 			}
 
 			movable, err := s.Movable()
 			if err != nil {
-				log.Fatalf("%s, failed to check if movable: %s", s.Directory, err)
+				log.Fatalf("failed to check if movable: %s", err)
 			}
 
 			switch movable {
@@ -167,15 +169,15 @@ func main() {
 				} else {
 					*sonarrSymlinkPath = path.Clean(*sonarrSymlinkPath)
 				}
-				log.Printf("%s is not moved, moving to: %s and creating symlink to: %s", s.Directory, *sonarrDestination, *sonarrSymlinkPath)
+				log.Printf("is not moved, moving to: %s and creating symlink to: %s", *sonarrDestination, *sonarrSymlinkPath)
 				err := show.Move(s, *sonarrDestination, *sonarrSymlinkPath)
 				if err != nil {
-					log.Fatalf("%s failed to move: %s", s.Directory, err)
+					log.Fatalf("failed to move: %s", err)
 				}
-				log.Printf("%s finished moving and created symlink", s.Directory)
+				log.Printf("finished moving and created symlink")
 			case false:
 				if *sonarrVerbose {
-					log.Printf("%s is already moved, skipping...", s.Directory)
+					log.Printf("is already moved, skipping...")
 				}
 			}
 		}
